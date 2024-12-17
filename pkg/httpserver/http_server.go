@@ -3,6 +3,7 @@ package httpserver
 import (
 	"app/pkg/auth"
 	"app/pkg/config"
+	"app/pkg/emailsender"
 	"app/pkg/repository"
 	"app/pkg/repository/postgres"
 	"net/http"
@@ -29,10 +30,19 @@ func StartHttpServer(port string) error {
 	}
 	defer DB.Close()
 
+	EmailSender := emailsender.NewEmailSender(&emailsender.AuthData{
+		Identity: config.GetEnv("EMAIL_SENDER_IDENTITY", "identity"),
+		Username: config.GetEnv("EMAIL_SENDER_USERNAME", "username"),
+		Password: config.GetEnv("EMAIL_SENDER_PASSWORD", "password"),
+		Host:     config.GetEnv("EMAIL_SENDER_HOST", "host"),
+		Email:    config.GetEnv("EMAIL_SENDER_EMAIL", "email"),
+		Addr:     config.GetEnv("EMAIL_SENDER_ADDR", "addr"),
+	})
+
 	r := mux.NewRouter()
 
 	r.HandleFunc("/Auth", auth.GetTokenHandler(DB, config.GetEnv("SECRET_KEY", "тут будет секретный анекдот"))).Methods("GET")
-	r.HandleFunc("/Refresh", auth.RefreshHandler(DB, auth.EmailSender{}, config.GetEnv("SECRET_KEY", "тут будет секретный анекдот"))).Methods("POST")
+	r.HandleFunc("/Refresh", auth.RefreshHandler(DB, EmailSender, config.GetEnv("SECRET_KEY", "тут будет секретный анекдот"))).Methods("POST")
 
 	return http.ListenAndServe(port, r)
 

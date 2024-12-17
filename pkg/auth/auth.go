@@ -17,7 +17,7 @@ type DB interface {
 }
 
 type EmailSender interface {
-	WarningEmail(email string, message string)
+	WarningEmail(email string, message string) error
 }
 
 type JWTPayload struct {
@@ -159,7 +159,10 @@ func RefreshHandler(db DB, email EmailSender, secretKey string) http.HandlerFunc
 		}
 
 		if refreshClaims.Ip != r.RemoteAddr {
-			email.WarningEmail(accessClaims.Ip, "IP address changed")
+			if err := email.WarningEmail(accessClaims.Ip, "IP address changed"); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
 		}
 
 		accessExpiration := time.Now().Add(time.Minute * 15)

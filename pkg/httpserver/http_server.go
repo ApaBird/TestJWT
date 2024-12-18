@@ -41,8 +41,8 @@ func StartHttpServer(port string) error {
 
 	r := mux.NewRouter()
 
-	r.HandleFunc("/Auth", auth.GetTokenHandler(DB, config.GetEnv("SECRET_KEY", "тут будет секретный анекдот"))).Methods("GET")
-	r.HandleFunc("/Refresh", auth.RefreshHandler(DB, EmailSender, config.GetEnv("SECRET_KEY", "тут будет секретный анекдот"))).Methods("POST")
+	r.HandleFunc("/Auth", auth.GetTokenHandler(DB, config.GetEnv("SECRET_KEY", "secret"))).Methods("GET")
+	r.HandleFunc("/Refresh", auth.RefreshHandler(DB, EmailSender, config.GetEnv("SECRET_KEY", "secret"))).Methods("POST")
 
 	return http.ListenAndServe(port, r)
 

@@ -27,3 +27,13 @@ func (conn *PostgresConnect) GetToken(guid string) (string, error) {
 	}
 	return token, nil
 }
+
+func (conn *PostgresConnect) GetEmail(guid string) (string, error) {
+	query := `SELECT email FROM users WHERE id = $1;`
+	var email string
+	err := conn.db.QueryRow(query, guid).Scan(&email)
+	if err != nil {
+		return "", err
+	}
+	return email, nil
+}

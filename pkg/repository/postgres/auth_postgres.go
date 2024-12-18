@@ -1,6 +1,8 @@
 package postgres
 
-import "fmt"
+import (
+	"database/sql"
+)
 
 func (conn *PostgresConnect) SaveToken(token string, guid string) error {
 	query := `UPDATE users SET refresh_token = $1 WHERE id = $2 RETURNING id;`
@@ -11,7 +13,7 @@ func (conn *PostgresConnect) SaveToken(token string, guid string) error {
 	defer rows.Close()
 
 	if !rows.Next() {
-		return fmt.Errorf("no users with guid %s", guid)
+		return sql.ErrNoRows
 	}
 	return nil
 }

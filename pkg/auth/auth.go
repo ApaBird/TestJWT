@@ -3,6 +3,7 @@ package auth
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -55,17 +56,20 @@ func GetTokenHandler(db DB, secretKey string) http.HandlerFunc {
 
 		refreshToken, err := refresh.SignedString([]byte(secretKey))
 		if err != nil {
+			log.Println("[HANDLER ERROR] Handler 'TokenHandler' ", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		refreshHash, err := bcrypt.GenerateFromPassword([]byte(refreshToken), bcrypt.DefaultCost)
+		refreshHash, err := bcrypt.GenerateFromPassword([]byte(refreshToken)[len(refreshToken)-72:], bcrypt.DefaultCost)
 		if err != nil {
+			log.Println("[HANDLER ERROR] Handler 'TokenHandler' ", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		if err := db.SaveToken(string(refreshHash), guid); err != nil {
+			log.Println("[HANDLER ERROR] Handler 'TokenHandler' ", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -82,6 +86,7 @@ func GetTokenHandler(db DB, secretKey string) http.HandlerFunc {
 
 		token, err := accessToken.SignedString([]byte(secretKey))
 		if err != nil {
+			log.Println("[HANDLER ERROR] Handler 'TokenHandler' ", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -94,6 +99,7 @@ func GetTokenHandler(db DB, secretKey string) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(res); err != nil {
+			log.Println("[HANDLER ERROR] Handler 'TokenHandler' ", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -121,45 +127,53 @@ func RefreshHandler(db DB, email EmailSender, secretKey string) http.HandlerFunc
 		accessToken := r.Header.Get("Authorization")
 
 		if accessToken == "" {
+			log.Println("[DEBUG] Access token is empty")
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
 		accessClaims, err := ExtractClaims(accessToken, secretKey)
 		if err != nil {
+			log.Println("[DEBUG] Access token is not valid")
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
 		refreshClaims, err := ExtractClaims(refreshToken, secretKey)
 		if err != nil {
+			log.Println("[DEBUG] Refresh token is not valid")
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
 		if accessClaims.Subject != refreshClaims.Subject || accessClaims.Id != refreshClaims.Id {
+			log.Println("[DEBUG] Refresh token != access token")
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
 		if refreshClaims.ExpiresAt < time.Now().Unix() {
+			log.Println("[DEBUG] Refresh token is expired")
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
 		token, err := db.GetToken(refreshClaims.Subject)
 		if err != nil {
+			log.Println("[HANDLER ERROR] Handler 'RefreshHandler' ", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		if err := bcrypt.CompareHashAndPassword([]byte(token), []byte(refreshToken)); err != nil {
+		if err := bcrypt.CompareHashAndPassword([]byte(token), []byte(refreshToken[len(refreshToken)-72:])); err != nil {
+			log.Println("[HANDLER ERROR] Handler 'RefreshHandler' ", err.Error())
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
 		if refreshClaims.Ip != r.RemoteAddr {
 			if err := email.WarningEmail(accessClaims.Ip, "IP address changed"); err != nil {
+				log.Println("[HANDLER ERROR] Handler 'RefreshHandler' ", err.Error())
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
@@ -177,6 +191,7 @@ func RefreshHandler(db DB, email EmailSender, secretKey string) http.HandlerFunc
 
 		token, err = newAccessToken.SignedString([]byte(secretKey))
 		if err != nil {
+			log.Println("[HANDLER ERROR] Handler 'RefreshHandler' ", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -184,6 +199,7 @@ func RefreshHandler(db DB, email EmailSender, secretKey string) http.HandlerFunc
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(Responce{AccessToken: token}); err != nil {
+			log.Println("[HANDLER ERROR] Handler 'RefreshHandler' ", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
